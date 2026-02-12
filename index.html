@@ -1,0 +1,2290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Framework Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-void: #05060a;
+            --bg-deep: #0a0d14;
+            --bg-surface: #0f1219;
+            --bg-card: #141820;
+            --bg-elevated: #1a1f2b;
+            --border-dim: rgba(255,255,255,0.04);
+            --border-subtle: rgba(255,255,255,0.07);
+            --border-active: rgba(0,225,255,0.2);
+            --accent-cyan: #00e1ff;
+            --accent-violet: #8b5cf6;
+            --accent-magenta: #ec4899;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --text-white: #f0f2f5;
+            --text-secondary: #8892a4;
+            --text-dim: #4b5563;
+            --glow-cyan: 0 0 30px rgba(0,225,255,0.15), 0 0 60px rgba(0,225,255,0.05);
+            --glow-violet: 0 0 30px rgba(139,92,246,0.15);
+            --font-display: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-display);
+            background: var(--bg-void);
+            color: var(--text-white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ═══ ANIMATED GRID BACKGROUND ═══ */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                linear-gradient(rgba(0,225,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,225,255,0.02) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 10%, rgba(0,225,255,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 80%, rgba(139,92,246,0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(236,72,153,0.02) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 0 24px 40px;
+        }
+
+        /* ═══ HEADER ═══ */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            margin: 0 -24px 32px;
+            background: rgba(5,6,10,0.7);
+            backdrop-filter: blur(20px) saturate(1.5);
+            -webkit-backdrop-filter: blur(20px) saturate(1.5);
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+            display: grid;
+            place-items: center;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--bg-void);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text-white);
+        }
+
+        .header-subtitle {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-top: 1px;
+        }
+
+        /* ═══ LANGUAGE TOGGLE ═══ */
+        .lang-toggle {
+            display: flex;
+            align-items: center;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .lang-toggle button {
+            background: transparent;
+            border: none;
+            padding: 7px 14px;
+            color: var(--text-dim);
+            cursor: pointer;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            transition: all 0.2s ease;
+        }
+
+        .lang-toggle button:hover {
+            color: var(--text-secondary);
+        }
+
+        .lang-toggle button.active {
+            background: var(--accent-cyan);
+            color: var(--bg-void);
+            box-shadow: 0 0 12px rgba(0,225,255,0.25);
+        }
+
+        /* ═══ UPLOAD ZONE ═══ */
+        .upload-zone {
+            position: relative;
+            border: 1px dashed var(--border-subtle);
+            border-radius: 20px;
+            padding: 80px 40px;
+            text-align: center;
+            margin-bottom: 32px;
+            transition: all 0.3s ease;
+            background: var(--bg-surface);
+            overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(0,225,255,0.02), rgba(139,92,246,0.02));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .upload-zone:hover { border-color: var(--border-active); cursor: pointer; }
+        .upload-zone:hover::before { opacity: 1; }
+
+        .upload-zone.drag-over {
+            border-color: var(--accent-emerald);
+            background: rgba(16,185,129,0.03);
+        }
+
+        .upload-zone .upload-glyph {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 24px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(0,225,255,0.1), rgba(139,92,246,0.1));
+            border: 1px solid var(--border-subtle);
+            display: grid;
+            place-items: center;
+        }
+
+        .upload-zone .upload-glyph svg {
+            width: 28px;
+            height: 28px;
+            stroke: var(--accent-cyan);
+            opacity: 0.8;
+        }
+
+        .upload-zone h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .upload-zone p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .upload-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--accent-cyan), #00b4d8);
+            border: none;
+            padding: 12px 32px;
+            border-radius: 12px;
+            color: var(--bg-void);
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: -0.01em;
+        }
+
+        .upload-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow-cyan);
+        }
+
+        #fileInput { display: none; }
+
+        /* ═══ VALIDATION ERRORS ═══ */
+        .validation-errors {
+            background: rgba(239,68,68,0.06);
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            display: none;
+        }
+        .validation-errors.show { display: block; }
+
+        .validation-errors h3 {
+            color: var(--accent-red);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .validation-errors ul { list-style: none; }
+
+        .validation-errors li {
+            padding: 6px 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-bottom: 1px solid rgba(239,68,68,0.08);
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .validation-errors li::before {
+            content: '›';
+            position: absolute;
+            left: 0;
+            color: var(--accent-red);
+            font-weight: 700;
+        }
+
+        /* ═══ DASHBOARD ═══ */
+        .dashboard { display: none; }
+        .dashboard.show { display: block; }
+
+        /* ═══ METRIC CARDS ═══ */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: 14px;
+            padding: 20px 22px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .metric-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-cyan);
+            opacity: 0.4;
+        }
+
+        .metric-card:nth-child(2)::after { background: var(--accent-violet); }
+        .metric-card:nth-child(3)::after { background: var(--accent-magenta); }
+        .metric-card:nth-child(4)::after { background: var(--accent-emerald); }
+        .metric-card:nth-child(5)::after { background: var(--accent-amber); }
+        .metric-card:nth-child(6)::after { background: var(--accent-red); }
+
+        .metric-card:hover {
+            border-color: var(--border-active);
+            transform: translateY(-2px);
+        }
+
+        .metric-label {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text-white);
+            letter-spacing: -0.02em;
+            word-break: break-all;
+        }
+
+        /* ═══ TABS ═══ */
+        .tab-strip {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-dim);
+            padding: 4px;
+            border-radius: 14px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .tab-strip::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 22px;
+            color: var(--text-dim);
+            cursor: pointer;
+            border-radius: 10px;
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover { color: var(--text-secondary); background: rgba(255,255,255,0.02); }
+
+        .tab-btn.active {
+            background: var(--bg-elevated);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-subtle);
+            font-weight: 600;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ═══ SECTION HEADERS ═══ */
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .section-title h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text-white);
+            white-space: nowrap;
+        }
+
+        .section-title .line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border-subtle), transparent);
+        }
+
+        /* ═══ PODIUM CARDS ═══ */
+        .podium-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .podium-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: 16px;
+            padding: 28px 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .podium-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--border-dim);
+        }
+
+        .podium-card.gold::before { background: linear-gradient(90deg, #fbbf24, #f59e0b, #d97706); }
+        .podium-card.silver::before { background: linear-gradient(90deg, #9ca3af, #d1d5db, #9ca3af); }
+        .podium-card.bronze::before { background: linear-gradient(90deg, #b45309, #d97706, #b45309); }
+
+        .podium-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-active);
+            box-shadow: 0 16px 48px rgba(0,0,0,0.3);
+        }
+
+        .podium-rank {
+            font-family: var(--font-mono);
+            font-size: 2.4rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .podium-card.gold .podium-rank { color: #fbbf24; text-shadow: 0 0 20px rgba(251,191,36,0.3); }
+        .podium-card.silver .podium-rank { color: #9ca3af; }
+        .podium-card.bronze .podium-rank { color: #d97706; }
+        .podium-card.other .podium-rank { color: var(--text-dim); }
+
+        .podium-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+        }
+
+        .podium-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .podium-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 14px;
+            background: var(--bg-surface);
+            border-radius: 8px;
+            border: 1px solid var(--border-dim);
+        }
+
+        .podium-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+
+        .podium-stat-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-emerald);
+            font-family: var(--font-mono);
+        }
+
+        /* VS-Leader & Tier Badges */
+        .podium-meta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .vs-leader-tag {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.03em;
+        }
+
+        .vs-leader-tag.is-leader {
+            background: rgba(251,191,36,0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(251,191,36,0.25);
+        }
+
+        .vs-leader-tag.close {
+            background: rgba(16,185,129,0.1);
+            color: var(--accent-emerald);
+            border: 1px solid rgba(16,185,129,0.2);
+        }
+
+        .vs-leader-tag.mid {
+            background: rgba(245,158,11,0.1);
+            color: var(--accent-amber);
+            border: 1px solid rgba(245,158,11,0.2);
+        }
+
+        .vs-leader-tag.far {
+            background: rgba(239,68,68,0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239,68,68,0.2);
+        }
+
+        .tier-badge {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 5px;
+            letter-spacing: 0.05em;
+        }
+
+        .tier-S { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+        .tier-A { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+        .tier-B { background: rgba(56,189,248,0.1); color: #38bdf8; border: 1px solid rgba(56,189,248,0.2); }
+        .tier-C { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+        .tier-D { background: rgba(239,68,68,0.08); color: #f87171; border: 1px solid rgba(239,68,68,0.15); }
+
+        .stability-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .stability-track {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-deep);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .stability-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        /* ═══ CHART CARDS ═══ */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 600px) {
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .chart-card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-card-title .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+        }
+
+        /* ═══ TABLES ═══ */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .table-card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        .data-table th {
+            background: var(--bg-surface);
+            color: var(--accent-cyan);
+            padding: 12px 14px;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .data-table td {
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--border-dim);
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        .data-table tr:hover td {
+            background: rgba(0,225,255,0.02);
+            color: var(--text-white);
+        }
+
+        .data-table .fw-name {
+            font-weight: 600;
+            color: var(--text-white);
+        }
+
+        .data-table .hl-green { color: var(--accent-emerald); font-weight: 600; }
+        .data-table .hl-red { color: var(--accent-red); font-weight: 600; }
+        .data-table .hl-amber { color: var(--accent-amber); font-weight: 600; }
+
+        /* ═══ RANK BADGE ═══ */
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+
+        .rank-1 {
+            background: rgba(251,191,36,0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(251,191,36,0.3);
+        }
+
+        .rank-2 {
+            background: rgba(156,163,175,0.1);
+            color: #d1d5db;
+            border: 1px solid rgba(156,163,175,0.2);
+        }
+
+        .rank-3 {
+            background: rgba(217,119,6,0.1);
+            color: #d97706;
+            border: 1px solid rgba(217,119,6,0.2);
+        }
+
+        .rank-other {
+            background: var(--bg-surface);
+            color: var(--text-dim);
+            border: 1px solid var(--border-dim);
+        }
+
+        /* ═══ STATUS BADGES ═══ */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .status-pass {
+            background: rgba(16,185,129,0.1);
+            color: var(--accent-emerald);
+            border: 1px solid rgba(16,185,129,0.2);
+        }
+
+        .status-fail {
+            background: rgba(239,68,68,0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239,68,68,0.2);
+        }
+
+        /* ═══ PROGRESS BARS ═══ */
+        .progress-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .progress-item { margin-bottom: 16px; }
+        .progress-item:last-child { margin-bottom: 0; }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .progress-label {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-white);
+        }
+
+        .progress-value {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        .progress-track {
+            height: 6px;
+            background: var(--bg-surface);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--border-dim);
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* ═══ DOWNLOAD SECTION ═══ */
+        .download-section {
+            text-align: center;
+            padding: 36px 20px;
+            border-top: 1px solid var(--border-dim);
+            margin-top: 20px;
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            padding: 14px 36px;
+            border-radius: 12px;
+            color: var(--accent-emerald);
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .download-btn:hover {
+            border-color: rgba(16,185,129,0.3);
+            background: rgba(16,185,129,0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(16,185,129,0.1);
+        }
+
+        .download-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* ═══ FOOTER ═══ */
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            border-top: 1px solid var(--border-dim);
+            margin-top: 20px;
+        }
+
+        /* ═══ LOADING OVERLAY ═══ */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5,6,10,0.92);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .loading-overlay.show { display: flex; }
+
+        .spinner-ring {
+            width: 44px;
+            height: 44px;
+            border: 2px solid var(--border-subtle);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ═══ ANIMATIONS ═══ */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-in {
+            animation: fadeUp 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        .delay-1 { animation-delay: 0.05s; }
+        .delay-2 { animation-delay: 0.1s; }
+        .delay-3 { animation-delay: 0.15s; }
+        .delay-4 { animation-delay: 0.2s; }
+        .delay-5 { animation-delay: 0.25s; }
+
+        /* ═══ RESPONSIVE ═══ */
+        @media (max-width: 768px) {
+            .header {
+                flex-wrap: wrap;
+                gap: 12px;
+                padding: 12px 16px;
+            }
+
+            .header-brand { min-width: 0; flex: 1; }
+            .header-title { font-size: 0.95rem; }
+
+            .container { padding: 0 14px 30px; }
+
+            .upload-zone { padding: 50px 24px; }
+
+            .metrics-row { grid-template-columns: repeat(2, 1fr); }
+
+            .charts-grid { grid-template-columns: 1fr; }
+
+            .podium-grid { grid-template-columns: 1fr; }
+
+            .tab-strip { -webkit-overflow-scrolling: touch; }
+
+            .data-table th, .data-table td { padding: 8px 10px; }
+        }
+
+        @media (max-width: 480px) {
+            .metrics-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-brand">
+                <div class="header-logo">BV</div>
+                <div>
+                    <div class="header-title">Benchmark Visualizer</div>
+                    <div class="header-subtitle" data-i18n="header.subtitle">Panel de Análisis de Rendimiento</div>
+                </div>
+            </div>
+            <div class="lang-toggle">
+                <button class="active" data-lang="es">ES</button>
+                <button data-lang="en">EN</button>
+            </div>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-zone" id="uploadSection">
+            <div class="upload-glyph">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+            </div>
+            <h2 data-i18n="upload.title">Cargar result.json</h2>
+            <p data-i18n="upload.description">Arrastra y suelta el archivo result.json generado por Benchmark Framework, o haz clic para seleccionarlo</p>
+            <p style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim);margin-bottom:24px;" data-i18n="upload.hint">Ruta habitual: ~/FrameworkBenchmarks/results/result.json</p>
+            <button class="upload-cta" id="uploadBtn" data-i18n="upload.button">
+                Seleccionar result.json
+            </button>
+            <input type="file" id="fileInput" accept=".json">
+        </section>
+
+        <!-- Validation Errors -->
+        <div class="validation-errors" id="validationErrors">
+            <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span data-i18n="validation.title">Errores de Validación</span>
+            </h3>
+            <ul id="errorList"></ul>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="dashboard" id="dashboard">
+            <!-- Info Cards -->
+            <div class="metrics-row" id="infoGrid"></div>
+
+            <!-- Tabs -->
+            <div class="tab-strip" id="mainTabs">
+                <button class="tab-btn active" data-tab="overview" data-i18n="tabs.overview">Resumen</button>
+                <button class="tab-btn" data-tab="json" data-i18n="tabs.json">JSON Test</button>
+                <button class="tab-btn" data-tab="plaintext" data-i18n="tabs.plaintext">Plaintext Test</button>
+                <button class="tab-btn" data-tab="comparison" data-i18n="tabs.comparison">Comparación</button>
+                <button class="tab-btn" data-tab="rankings" data-i18n="tabs.rankings">Rankings</button>
+            </div>
+
+            <!-- Overview Tab -->
+            <div class="tab-content active" id="tab-overview">
+                <div class="section-title">
+                    <h2 data-i18n="overview.topFrameworks">Top Frameworks</h2>
+                    <div class="line"></div>
+                </div>
+                <div class="podium-grid" id="topFrameworks"></div>
+
+                <div class="section-title">
+                    <h2 data-i18n="overview.generalPerformance">Rendimiento General</h2>
+                    <div class="line"></div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-card-title">
+                            <span class="dot"></span>
+                            <span data-i18n="charts.totalRequests">Total de Requests (JSON)</span>
+                        </div>
+                        <div class="chart-container"><canvas id="totalRequestsChart"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-card-title">
+                            <span class="dot" style="background:var(--accent-violet)"></span>
+                            <span data-i18n="charts.avgLatency">Latencia Promedio (JSON)</span>
+                        </div>
+                        <div class="chart-container"><canvas id="avgLatencyChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- JSON Test Tab -->
+            <div class="tab-content" id="tab-json">
+                <div class="section-title">
+                    <h2 data-i18n="json.title">JSON Serialization Test</h2>
+                    <div class="line"></div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-card-title"><span class="dot"></span><span data-i18n="json.latencyByConcurrency">Latencia por Nivel de Concurrencia</span></div>
+                        <div class="chart-container"><canvas id="jsonLatencyChart"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-card-title"><span class="dot" style="background:var(--accent-violet)"></span><span data-i18n="json.requestsByConcurrency">Requests por Nivel de Concurrencia</span></div>
+                        <div class="chart-container"><canvas id="jsonRequestsChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="table-card">
+                    <div class="table-card-title" data-i18n="json.detailedData">Datos Detallados JSON</div>
+                    <table class="data-table" id="jsonTable">
+                        <thead><tr>
+                            <th data-i18n="table.framework">Framework</th>
+                            <th data-i18n="table.concurrency">Concurrencia</th>
+                            <th data-i18n="table.latencyAvg">Latencia Avg</th>
+                            <th data-i18n="table.latencyMax">Latencia Max</th>
+                            <th data-i18n="table.stdDev">Std Dev</th>
+                            <th data-i18n="table.totalRequests">Total Requests</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Plaintext Test Tab -->
+            <div class="tab-content" id="tab-plaintext">
+                <div class="section-title">
+                    <h2 data-i18n="plaintext.title">Plaintext Test</h2>
+                    <div class="line"></div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-card-title"><span class="dot"></span><span data-i18n="plaintext.latencyByPipeline">Latencia por Nivel de Pipeline</span></div>
+                        <div class="chart-container"><canvas id="plaintextLatencyChart"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-card-title"><span class="dot" style="background:var(--accent-violet)"></span><span data-i18n="plaintext.requestsByPipeline">Requests por Nivel de Pipeline</span></div>
+                        <div class="chart-container"><canvas id="plaintextRequestsChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="table-card">
+                    <div class="table-card-title" data-i18n="plaintext.detailedData">Datos Detallados Plaintext</div>
+                    <table class="data-table" id="plaintextTable">
+                        <thead><tr>
+                            <th data-i18n="table.framework">Framework</th>
+                            <th data-i18n="table.pipeline">Pipeline</th>
+                            <th data-i18n="table.latencyAvg">Latencia Avg</th>
+                            <th data-i18n="table.latencyMax">Latencia Max</th>
+                            <th data-i18n="table.stdDev">Std Dev</th>
+                            <th data-i18n="table.totalRequests">Total Requests</th>
+                            <th data-i18n="table.timeouts">Timeouts</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Comparison Tab -->
+            <div class="tab-content" id="tab-comparison">
+                <div class="section-title">
+                    <h2 data-i18n="comparison.title">Comparación de Frameworks</h2>
+                    <div class="line"></div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-card-title"><span class="dot"></span><span data-i18n="comparison.latencyComparison">Comparación de Latencia Promedio</span></div>
+                        <div class="chart-container"><canvas id="comparisonLatencyChart"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-card-title"><span class="dot" style="background:var(--accent-magenta)"></span><span data-i18n="comparison.throughputComparison">Comparación de Throughput</span></div>
+                        <div class="chart-container"><canvas id="comparisonThroughputChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="progress-card">
+                    <div class="table-card-title" data-i18n="comparison.relativePerformance">Rendimiento Relativo</div>
+                    <div id="progressBars"></div>
+                </div>
+            </div>
+
+            <!-- Rankings Tab -->
+            <div class="tab-content" id="tab-rankings">
+                <div class="section-title">
+                    <h2 data-i18n="rankings.title">Rankings y Estadísticas</h2>
+                    <div class="line"></div>
+                </div>
+                <div class="table-card">
+                    <div class="table-card-title" data-i18n="rankings.generalRanking">Ranking General</div>
+                    <table class="data-table" id="rankingTable">
+                        <thead><tr>
+                            <th data-i18n="table.position">Posición</th>
+                            <th data-i18n="table.framework">Framework</th>
+                            <th data-i18n="table.tier">Tier</th>
+                            <th data-i18n="table.totalRequests">Requests Totales</th>
+                            <th data-i18n="table.reqPerSec">Req/s</th>
+                            <th data-i18n="table.vsLeader">% vs Líder</th>
+                            <th data-i18n="table.latencyMin">Latencia Min</th>
+                            <th data-i18n="table.latencyMax">Latencia Max</th>
+                            <th data-i18n="table.verification">Verificación</th>
+                            <th>SLOC</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="table-card">
+                    <div class="table-card-title" data-i18n="rankings.testMetadata">Metadatos del Test</div>
+                    <table class="data-table" id="metadataTable">
+                        <thead><tr>
+                            <th data-i18n="table.property">Propiedad</th>
+                            <th data-i18n="table.value">Valor</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Download Section -->
+            <div class="download-section" id="downloadSection">
+                <button class="download-btn" id="downloadBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span data-i18n="download.button">Descargar Reporte Estático</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p data-i18n="footer.text">Benchmark Framework Visualizer — Generado automáticamente</p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner-ring"></div>
+    </div>
+
+    <script>
+        // ============================================
+        // i18n
+        // ============================================
+        const i18n = {
+            currentLang: 'es',
+            translations: {
+                es: {
+                    'header.subtitle': 'Panel de Análisis de Rendimiento',
+                    'upload.title': 'Cargar result.json',
+                    'upload.description': 'Arrastra y suelta el archivo result.json generado por Benchmark Framework, o haz clic para seleccionarlo',
+                    'upload.button': 'Seleccionar result.json',
+                    'upload.hint': 'Ruta habitual: ~/FrameworkBenchmarks/results/result.json',
+                    'validation.title': 'Errores de Validación',
+                    'validation.requiredField': 'Campo requerido faltante',
+                    'validation.frameworksArray': "'frameworks' debe ser un array",
+                    'validation.frameworksEmpty': "El array 'frameworks' está vacío",
+                    'validation.rawDataType': 'debe ser un objeto',
+                    'validation.rawDataTypeArray': 'debe ser un array',
+                    'validation.parseError': 'Error al parsear JSON',
+                    'validation.readError': 'Error al leer el archivo',
+                    'validation.warning': 'Advertencia',
+                    'validation.missingLatency': 'latencyAvg faltante',
+                    'validation.missingRequests': 'totalRequests faltante',
+                    'tabs.overview': 'Resumen',
+                    'tabs.json': 'JSON Test',
+                    'tabs.plaintext': 'Plaintext Test',
+                    'tabs.comparison': 'Comparación',
+                    'tabs.rankings': 'Rankings',
+                    'overview.topFrameworks': 'Top Frameworks',
+                    'overview.generalPerformance': 'Rendimiento General',
+                    'charts.totalRequests': 'Total de Requests (JSON)',
+                    'charts.avgLatency': 'Latencia Promedio (JSON)',
+                    'json.title': 'JSON Serialization Test',
+                    'json.latencyByConcurrency': 'Latencia por Nivel de Concurrencia',
+                    'json.requestsByConcurrency': 'Requests por Nivel de Concurrencia',
+                    'json.detailedData': 'Datos Detallados JSON',
+                    'plaintext.title': 'Plaintext Test',
+                    'plaintext.latencyByPipeline': 'Latencia por Nivel de Pipeline',
+                    'plaintext.requestsByPipeline': 'Requests por Nivel de Pipeline',
+                    'plaintext.detailedData': 'Datos Detallados Plaintext',
+                    'comparison.title': 'Comparación de Frameworks',
+                    'comparison.latencyComparison': 'Comparación de Latencia Promedio',
+                    'comparison.throughputComparison': 'Comparación de Throughput',
+                    'comparison.relativePerformance': 'Rendimiento Relativo',
+                    'rankings.title': 'Rankings y Estadísticas',
+                    'rankings.generalRanking': 'Ranking General',
+                    'rankings.testMetadata': 'Metadatos del Test',
+                    'table.framework': 'Framework',
+                    'table.concurrency': 'Concurrencia',
+                    'table.pipeline': 'Pipeline',
+                    'table.latencyAvg': 'Latencia Avg',
+                    'table.latencyMax': 'Latencia Max',
+                    'table.latencyMin': 'Latencia Min',
+                    'table.stdDev': 'Std Dev',
+                    'table.totalRequests': 'Total Requests',
+                    'table.timeouts': 'Timeouts',
+                    'table.position': 'Posición',
+                    'table.verification': 'Verificación',
+                    'table.property': 'Propiedad',
+                    'table.value': 'Valor',
+                    'download.button': 'Descargar Reporte Estático',
+                    'footer.text': 'Benchmark Framework Visualizer',
+                    'info.uuid': 'UUID',
+                    'info.testedFrameworks': 'Frameworks Testeados',
+                    'info.startDate': 'Fecha de Inicio',
+                    'info.endDate': 'Fecha de Fin',
+                    'info.operatingSystem': 'Sistema Operativo',
+                    'info.testDuration': 'Duración por Test',
+                    'top.totalRequests': 'Total Requests',
+                    'top.minLatency': 'Latencia Mín',
+                    'top.linesOfCode': 'Líneas de Código',
+                    'top.vsLeader': 'vs Líder',
+                    'top.reqPerSec': 'Req/s Promedio',
+                    'top.latencyStability': 'Estabilidad',
+                    'top.leader': 'LÍDER',
+                    'top.multiplierVsLast': 'vs Último',
+                    'top.jsonReqs': 'Req JSON',
+                    'top.ptReqs': 'Req Plaintext',
+                    'table.vsLeader': '% vs Líder',
+                    'table.reqPerSec': 'Req/s',
+                    'table.tier': 'Tier',
+                    'info.totalRequests': 'Requests Totales',
+                    'info.bestFramework': 'Mejor Framework',
+                    'info.bestReqSec': 'Mejor Req/s',
+                    'progress.requests': 'requests',
+                    'metadata.uuid': 'UUID',
+                    'metadata.name': 'Nombre',
+                    'metadata.environment': 'Entorno',
+                    'metadata.gitRepo': 'Git Repository',
+                    'metadata.gitBranch': 'Git Branch',
+                    'metadata.gitCommit': 'Git Commit',
+                    'metadata.os': 'Sistema Operativo',
+                    'metadata.startDate': 'Fecha Inicio',
+                    'metadata.endDate': 'Fecha Fin',
+                    'metadata.testDuration': 'Duración Test',
+                    'metadata.seconds': 'segundos',
+                    'chart.latencyMs': 'Latencia (ms)',
+                    'chart.concurrencyLevel': 'Nivel de Concurrencia',
+                    'chart.pipelineConcurrency': 'Pipeline Concurrency',
+                    'chart.totalRequestsLabel': 'Total Requests',
+                    'chart.avgLatencyMs': 'Latencia Promedio (ms)',
+                    'status.pass': 'pasó',
+                    'status.fail': 'falló'
+                },
+                en: {
+                    'header.subtitle': 'Framework Performance Analysis',
+                    'upload.title': 'Load result.json',
+                    'upload.description': 'Drag and drop the result.json file generated by Benchmark Framework, or click to select it',
+                    'upload.button': 'Select result.json',
+                    'upload.hint': 'Typical path: ~/FrameworkBenchmarks/results/result.json',
+                    'validation.title': 'Validation Errors',
+                    'validation.requiredField': 'Missing required field',
+                    'validation.frameworksArray': "'frameworks' must be an array",
+                    'validation.frameworksEmpty': "The 'frameworks' array is empty",
+                    'validation.rawDataType': 'must be an object',
+                    'validation.rawDataTypeArray': 'must be an array',
+                    'validation.parseError': 'Error parsing JSON',
+                    'validation.readError': 'Error reading file',
+                    'validation.warning': 'Warning',
+                    'validation.missingLatency': 'latencyAvg missing',
+                    'validation.missingRequests': 'totalRequests missing',
+                    'tabs.overview': 'Overview',
+                    'tabs.json': 'JSON Test',
+                    'tabs.plaintext': 'Plaintext Test',
+                    'tabs.comparison': 'Comparison',
+                    'tabs.rankings': 'Rankings',
+                    'overview.topFrameworks': 'Top Frameworks',
+                    'overview.generalPerformance': 'General Performance',
+                    'charts.totalRequests': 'Total Requests (JSON)',
+                    'charts.avgLatency': 'Average Latency (JSON)',
+                    'json.title': 'JSON Serialization Test',
+                    'json.latencyByConcurrency': 'Latency by Concurrency Level',
+                    'json.requestsByConcurrency': 'Requests by Concurrency Level',
+                    'json.detailedData': 'Detailed JSON Data',
+                    'plaintext.title': 'Plaintext Test',
+                    'plaintext.latencyByPipeline': 'Latency by Pipeline Level',
+                    'plaintext.requestsByPipeline': 'Requests by Pipeline Level',
+                    'plaintext.detailedData': 'Detailed Plaintext Data',
+                    'comparison.title': 'Framework Comparison',
+                    'comparison.latencyComparison': 'Average Latency Comparison',
+                    'comparison.throughputComparison': 'Throughput Comparison',
+                    'comparison.relativePerformance': 'Relative Performance',
+                    'rankings.title': 'Rankings and Statistics',
+                    'rankings.generalRanking': 'General Ranking',
+                    'rankings.testMetadata': 'Test Metadata',
+                    'table.framework': 'Framework',
+                    'table.concurrency': 'Concurrency',
+                    'table.pipeline': 'Pipeline',
+                    'table.latencyAvg': 'Latency Avg',
+                    'table.latencyMax': 'Latency Max',
+                    'table.latencyMin': 'Latency Min',
+                    'table.stdDev': 'Std Dev',
+                    'table.totalRequests': 'Total Requests',
+                    'table.timeouts': 'Timeouts',
+                    'table.position': 'Position',
+                    'table.verification': 'Verification',
+                    'table.property': 'Property',
+                    'table.value': 'Value',
+                    'download.button': 'Download Static Report',
+                    'footer.text': 'Benchmark Framework Visualizer',
+                    'info.uuid': 'UUID',
+                    'info.testedFrameworks': 'Tested Frameworks',
+                    'info.startDate': 'Start Date',
+                    'info.endDate': 'End Date',
+                    'info.operatingSystem': 'Operating System',
+                    'info.testDuration': 'Test Duration',
+                    'top.totalRequests': 'Total Requests',
+                    'top.minLatency': 'Min Latency',
+                    'top.linesOfCode': 'Lines of Code',
+                    'top.vsLeader': 'vs Leader',
+                    'top.reqPerSec': 'Avg Req/s',
+                    'top.latencyStability': 'Stability',
+                    'top.leader': 'LEADER',
+                    'top.multiplierVsLast': 'vs Last',
+                    'top.jsonReqs': 'JSON Req',
+                    'top.ptReqs': 'Plaintext Req',
+                    'table.vsLeader': '% vs Leader',
+                    'table.reqPerSec': 'Req/s',
+                    'table.tier': 'Tier',
+                    'info.totalRequests': 'Total Requests',
+                    'info.bestFramework': 'Best Framework',
+                    'info.bestReqSec': 'Best Req/s',
+                    'progress.requests': 'requests',
+                    'metadata.uuid': 'UUID',
+                    'metadata.name': 'Name',
+                    'metadata.environment': 'Environment',
+                    'metadata.gitRepo': 'Git Repository',
+                    'metadata.gitBranch': 'Git Branch',
+                    'metadata.gitCommit': 'Git Commit',
+                    'metadata.os': 'Operating System',
+                    'metadata.startDate': 'Start Date',
+                    'metadata.endDate': 'End Date',
+                    'metadata.testDuration': 'Test Duration',
+                    'metadata.seconds': 'seconds',
+                    'chart.latencyMs': 'Latency (ms)',
+                    'chart.concurrencyLevel': 'Concurrency Level',
+                    'chart.pipelineConcurrency': 'Pipeline Concurrency',
+                    'chart.totalRequestsLabel': 'Total Requests',
+                    'chart.avgLatencyMs': 'Average Latency (ms)',
+                    'status.pass': 'pass',
+                    'status.fail': 'fail'
+                }
+            },
+            t(key) {
+                return this.translations[this.currentLang][key] || key;
+            },
+            setLanguage(lang) {
+                if (this.translations[lang]) {
+                    this.currentLang = lang;
+                    try { localStorage.setItem('benchmark-lang', lang); } catch(e) {}
+                    this.updateAllTexts();
+                    document.documentElement.lang = lang;
+                    if (benchmarkData) {
+                        // Re-render dynamic content that uses i18n.t()
+                        renderInfoCards(benchmarkData);
+                        renderTopFrameworks(benchmarkData);
+                        renderTables(benchmarkData);
+                        renderProgressBars(benchmarkData);
+                        updateChartLabels();
+                    }
+                }
+            },
+            updateAllTexts() {
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    const key = el.getAttribute('data-i18n');
+                    const translation = this.t(key);
+                    if (translation) el.textContent = translation;
+                });
+            }
+        };
+
+        // ============================================
+        // GLOBALS
+        // ============================================
+        let benchmarkData = null;
+        let rawSourceData = null; // Keep the original JSON for download
+        let charts = {};
+
+        const frameworkColors = {
+            elysia:  { main: '#f472b6', light: 'rgba(244,114,182,0.15)' },
+            express: { main: '#4ade80', light: 'rgba(74,222,128,0.15)' },
+            fastify: { main: '#38bdf8', light: 'rgba(56,189,248,0.15)' },
+            hono:    { main: '#fb923c', light: 'rgba(251,146,60,0.15)' },
+            titanpl: { main: '#a78bfa', light: 'rgba(167,139,250,0.15)' }
+        };
+
+        const defaultColors = [
+            { main: '#818cf8', light: 'rgba(129,140,248,0.15)' },
+            { main: '#f0abfc', light: 'rgba(240,171,252,0.15)' },
+            { main: '#34d399', light: 'rgba(52,211,153,0.15)' },
+            { main: '#fbbf24', light: 'rgba(251,191,36,0.15)' },
+            { main: '#fb7185', light: 'rgba(251,113,133,0.15)' }
+        ];
+
+        // ============================================
+        // UTILS
+        // ============================================
+        function getFrameworkColor(fw, idx) {
+            return frameworkColors[fw] || defaultColors[idx % defaultColors.length];
+        }
+
+        function parseLatency(str) {
+            if (!str) return 0;
+            const s = str.toString().toLowerCase();
+            let v = parseFloat(s);
+            if (s.includes('ms')) return v;
+            if (s.includes('us')) return v / 1000;
+            if (s.includes('s') && !s.includes('ms')) return v * 1000;
+            return v;
+        }
+
+        function fmt(n) { return n.toLocaleString(); }
+
+        function fmtDate(ts) {
+            if (!ts) return 'N/A';
+            return new Date(ts).toLocaleString();
+        }
+
+        function showLoading() { var el = document.getElementById('loadingOverlay'); if (el) el.classList.add('show'); }
+        function hideLoading() { var el = document.getElementById('loadingOverlay'); if (el) el.classList.remove('show'); }
+
+        // ============================================
+        // VALIDATION
+        // ============================================
+        function validateBenchmarkData(data) {
+            const errors = [], warnings = [];
+
+            ['frameworks', 'rawData'].forEach(f => {
+                if (!data[f]) errors.push(`${i18n.t('validation.requiredField')}: '${f}'`);
+            });
+
+            if (data.frameworks) {
+                if (!Array.isArray(data.frameworks)) errors.push(i18n.t('validation.frameworksArray'));
+                else if (data.frameworks.length === 0) errors.push(i18n.t('validation.frameworksEmpty'));
+            }
+
+            if (data.rawData) {
+                ['json','plaintext','query','db','cached-query'].forEach(type => {
+                    if (data.rawData[type] && typeof data.rawData[type] !== 'object')
+                        errors.push(`rawData.${type} ${i18n.t('validation.rawDataType')}`);
+                });
+
+                if (data.frameworks && Array.isArray(data.frameworks)) {
+                    data.frameworks.forEach(fw => {
+                        ['json','plaintext'].forEach(tt => {
+                            if (data.rawData[tt] && data.rawData[tt][fw]) {
+                                const td = data.rawData[tt][fw];
+                                if (!Array.isArray(td)) {
+                                    errors.push(`rawData.${tt}.${fw} ${i18n.t('validation.rawDataTypeArray')}`);
+                                } else {
+                                    td.forEach((e, i) => {
+                                        if (!e.latencyAvg && e.latencyAvg !== 0)
+                                            warnings.push(`rawData.${tt}.${fw}[${i}].${i18n.t('validation.missingLatency')}`);
+                                        if (!e.totalRequests && e.totalRequests !== 0)
+                                            warnings.push(`rawData.${tt}.${fw}[${i}].${i18n.t('validation.missingRequests')}`);
+                                    });
+                                }
+                            }
+                        });
+                    });
+                }
+            }
+
+            if (data.concurrencyLevels && !Array.isArray(data.concurrencyLevels))
+                errors.push("'concurrencyLevels' must be an array");
+            if (data.pipelineConcurrencyLevels && !Array.isArray(data.pipelineConcurrencyLevels))
+                errors.push("'pipelineConcurrencyLevels' must be an array");
+
+            return { errors, warnings, isValid: errors.length === 0 };
+        }
+
+        function showValidationErrors(errors, warnings) {
+            const container = document.getElementById('validationErrors');
+            const list = document.getElementById('errorList');
+            list.innerHTML = '';
+
+            errors.forEach(e => {
+                const li = document.createElement('li');
+                li.textContent = e;
+                li.style.color = 'var(--accent-red)';
+                list.appendChild(li);
+            });
+
+            warnings.forEach(w => {
+                const li = document.createElement('li');
+                li.textContent = `${i18n.t('validation.warning')}: ${w}`;
+                li.style.color = 'var(--accent-amber)';
+                list.appendChild(li);
+            });
+
+            container.classList.add('show');
+        }
+
+        // ============================================
+        // DATA PROCESSING
+        // ============================================
+        function processBenchmarkData(data) {
+            const processed = {
+                frameworks: data.frameworks || [],
+                concurrencyLevels: data.concurrencyLevels || [],
+                pipelineConcurrencyLevels: data.pipelineConcurrencyLevels || [],
+                duration: data.duration || 15,
+                json: {},
+                plaintext: {}
+            };
+
+            if (data.rawData?.json) {
+                data.frameworks.forEach(fw => {
+                    if (data.rawData.json[fw]) {
+                        processed.json[fw] = data.rawData.json[fw].map(e => ({
+                            latencyAvg: parseLatency(e.latencyAvg),
+                            latencyStdev: parseLatency(e.latencyStdev),
+                            latencyMax: parseLatency(e.latencyMax),
+                            totalRequests: e.totalRequests || 0,
+                            startTime: e.startTime,
+                            endTime: e.endTime
+                        }));
+                    }
+                });
+            }
+
+            if (data.rawData?.plaintext) {
+                data.frameworks.forEach(fw => {
+                    if (data.rawData.plaintext[fw]) {
+                        processed.plaintext[fw] = data.rawData.plaintext[fw].map(e => ({
+                            latencyAvg: parseLatency(e.latencyAvg),
+                            latencyStdev: parseLatency(e.latencyStdev),
+                            latencyMax: parseLatency(e.latencyMax),
+                            totalRequests: e.totalRequests || 0,
+                            timeout: e.timeout || 0,
+                            startTime: e.startTime,
+                            endTime: e.endTime
+                        }));
+                    }
+                });
+            }
+
+            processed.summary = calculateSummary(data, processed);
+
+            processed.metadata = {
+                uuid: data.uuid,
+                name: data.name,
+                environment: data.environmentDescription,
+                git: data.git,
+                os: data.operatingSystem,
+                startTime: data.startTime,
+                completionTime: data.completionTime,
+                duration: data.duration,
+                succeeded: data.succeeded,
+                failed: data.failed,
+                verify: data.verify,
+                slocCounts: data.rawData?.slocCounts || {}
+            };
+
+            return processed;
+        }
+
+        function calculateSummary(data, processed) {
+            const summary = { byFramework: {}, rankings: [] };
+            const duration = data.duration || 15;
+
+            data.frameworks.forEach(fw => {
+                let totalRequests = 0, minLatency = Infinity, maxLatency = 0, latencies = [], stdevs = [];
+                let jsonRequests = 0, plaintextRequests = 0;
+
+                if (processed.json[fw]) {
+                    processed.json[fw].forEach(e => {
+                        totalRequests += e.totalRequests;
+                        jsonRequests += e.totalRequests;
+                        if (e.latencyAvg > 0) { latencies.push(e.latencyAvg); minLatency = Math.min(minLatency, e.latencyAvg); }
+                        if (e.latencyStdev > 0) stdevs.push(e.latencyStdev);
+                        maxLatency = Math.max(maxLatency, e.latencyMax);
+                    });
+                }
+
+                if (processed.plaintext[fw]) {
+                    processed.plaintext[fw].forEach(e => {
+                        totalRequests += e.totalRequests;
+                        plaintextRequests += e.totalRequests;
+                        if (e.latencyAvg > 0) { latencies.push(e.latencyAvg); minLatency = Math.min(minLatency, e.latencyAvg); }
+                        if (e.latencyStdev > 0) stdevs.push(e.latencyStdev);
+                        maxLatency = Math.max(maxLatency, e.latencyMax);
+                    });
+                }
+
+                const avgLatency = latencies.length > 0
+                    ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0;
+                const avgStdev = stdevs.length > 0
+                    ? stdevs.reduce((a, b) => a + b, 0) / stdevs.length : 0;
+
+                // Coefficient of variation (lower = more stable/consistent)
+                const cv = avgLatency > 0 ? (avgStdev / avgLatency) : 0;
+                // Stability score: 100 = perfectly consistent, 0 = wildly variable
+                const stability = Math.max(0, Math.round((1 - Math.min(cv, 1)) * 100));
+
+                // Total test entries (each concurrency/pipeline level counts)
+                const numTests = (processed.json[fw]?.length || 0) + (processed.plaintext[fw]?.length || 0);
+                // Average requests per second across all test runs
+                const reqPerSec = numTests > 0 ? Math.round(totalRequests / (numTests * duration)) : 0;
+
+                summary.byFramework[fw] = {
+                    totalRequests,
+                    jsonRequests,
+                    plaintextRequests,
+                    minLatency: minLatency === Infinity ? 0 : minLatency,
+                    maxLatency,
+                    avgLatency,
+                    avgStdev,
+                    stability,
+                    reqPerSec,
+                    verify: data.verify?.[fw] || {}
+                };
+            });
+
+            // Sort by total requests (throughput)
+            summary.rankings = Object.keys(summary.byFramework)
+                .map(fw => ({ framework: fw, ...summary.byFramework[fw] }))
+                .sort((a, b) => b.totalRequests - a.totalRequests);
+
+            // Compute vs-leader % and performance tier
+            if (summary.rankings.length > 0) {
+                const leaderReqs = summary.rankings[0].totalRequests;
+                const lastReqs = summary.rankings[summary.rankings.length - 1].totalRequests;
+                summary.rankings.forEach((item, idx) => {
+                    // % of leader's throughput (leader = 100%)
+                    item.pctOfLeader = leaderReqs > 0 ? Math.round((item.totalRequests / leaderReqs) * 100) : 0;
+                    // Multiplier vs last place
+                    item.multiplierVsLast = lastReqs > 0 ? (item.totalRequests / lastReqs) : 0;
+                    // Performance tier
+                    if (item.pctOfLeader >= 95) item.tier = 'S';
+                    else if (item.pctOfLeader >= 75) item.tier = 'A';
+                    else if (item.pctOfLeader >= 50) item.tier = 'B';
+                    else if (item.pctOfLeader >= 25) item.tier = 'C';
+                    else item.tier = 'D';
+
+                    // Also store back into byFramework
+                    summary.byFramework[item.framework].pctOfLeader = item.pctOfLeader;
+                    summary.byFramework[item.framework].tier = item.tier;
+                    summary.byFramework[item.framework].multiplierVsLast = item.multiplierVsLast;
+                });
+            }
+
+            return summary;
+        }
+
+        // ============================================
+        // RENDERING
+        // ============================================
+        function renderInfoCards(data) {
+            const c = document.getElementById('infoGrid');
+            const leader = data.summary.rankings[0];
+            const allReqs = data.summary.rankings.reduce((s, r) => s + r.totalRequests, 0);
+            const cards = [
+                { label: i18n.t('info.uuid'), value: data.metadata.uuid?.substring(0, 8) + '…' || 'N/A' },
+                { label: i18n.t('info.testedFrameworks'), value: data.frameworks.length },
+                { label: i18n.t('info.totalRequests'), value: fmt(allReqs) },
+                { label: i18n.t('info.bestFramework'), value: leader ? leader.framework : 'N/A' },
+                { label: i18n.t('info.bestReqSec'), value: leader ? fmt(leader.reqPerSec) + '/s' : 'N/A' },
+                { label: i18n.t('info.operatingSystem'), value: data.metadata.os?.name || 'N/A' },
+            ];
+            c.innerHTML = cards.map((card, i) => `
+                <div class="metric-card animate-in delay-${i + 1}">
+                    <div class="metric-label">${card.label}</div>
+                    <div class="metric-value">${card.value}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderTopFrameworks(data) {
+            const c = document.getElementById('topFrameworks');
+            const rankings = data.summary.rankings.slice(0, 5);
+            const classes = ['gold','silver','bronze','other','other'];
+
+            c.innerHTML = rankings.map((item, i) => {
+                const sloc = data.metadata.slocCounts[item.framework] || 'N/A';
+                const isLeader = i === 0;
+
+                // VS Leader tag
+                let vsTag;
+                if (isLeader) {
+                    vsTag = `<span class="vs-leader-tag is-leader">★ ${i18n.t('top.leader')}</span>`;
+                } else {
+                    const gap = 100 - item.pctOfLeader;
+                    const cls = gap <= 15 ? 'close' : gap <= 40 ? 'mid' : 'far';
+                    vsTag = `<span class="vs-leader-tag ${cls}">${item.pctOfLeader}% ${i18n.t('top.vsLeader')}</span>`;
+                }
+
+                // Tier badge
+                const tierTag = `<span class="tier-badge tier-${item.tier}">TIER ${item.tier}</span>`;
+
+                // Stability bar color
+                const stabColor = item.stability >= 80 ? 'var(--accent-emerald)' :
+                                   item.stability >= 50 ? 'var(--accent-amber)' : 'var(--accent-red)';
+
+                // Multiplier vs last
+                const multStr = item.multiplierVsLast >= 1.1 ? item.multiplierVsLast.toFixed(1) + 'x' : '—';
+
+                return `
+                    <div class="podium-card ${classes[i]} animate-in delay-${i + 1}">
+                        <div class="podium-rank">#${i + 1}</div>
+                        <div class="podium-name">${item.framework}</div>
+                        <div class="podium-meta">${vsTag} ${tierTag}</div>
+                        <div class="podium-stats">
+                            <div class="podium-stat">
+                                <span class="podium-stat-label">${i18n.t('top.totalRequests')}</span>
+                                <span class="podium-stat-value">${fmt(item.totalRequests)}</span>
+                            </div>
+                            <div class="podium-stat">
+                                <span class="podium-stat-label">${i18n.t('top.reqPerSec')}</span>
+                                <span class="podium-stat-value">${fmt(item.reqPerSec)}/s</span>
+                            </div>
+                            <div class="podium-stat">
+                                <span class="podium-stat-label">${i18n.t('top.minLatency')}</span>
+                                <span class="podium-stat-value">${item.minLatency.toFixed(3)} ms</span>
+                            </div>
+                            <div class="podium-stat">
+                                <span class="podium-stat-label">${i18n.t('top.latencyStability')}</span>
+                                <span class="podium-stat-value">
+                                    <span class="stability-row">
+                                        <span class="stability-track"><span class="stability-fill" style="width:${item.stability}%;background:${stabColor};"></span></span>
+                                        ${item.stability}%
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="podium-stat">
+                                <span class="podium-stat-label">${i18n.t('top.jsonReqs')} / ${i18n.t('top.ptReqs')}</span>
+                                <span class="podium-stat-value" style="font-size:0.75rem;">${fmt(item.jsonRequests)} / ${fmt(item.plaintextRequests)}</span>
+                            </div>
+                            <div class="podium-stat">
+                                <span class="podium-stat-label">${i18n.t('top.multiplierVsLast')}</span>
+                                <span class="podium-stat-value">${multStr}</span>
+                            </div>
+                            <div class="podium-stat">
+                                <span class="podium-stat-label">${i18n.t('top.linesOfCode')}</span>
+                                <span class="podium-stat-value">${typeof sloc === 'number' ? fmt(sloc) : sloc}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderCharts(data) {
+            Object.values(charts).forEach(ch => ch.destroy());
+            charts = {};
+
+            Chart.defaults.color = '#6b7280';
+            Chart.defaults.borderColor = 'rgba(255,255,255,0.04)';
+            Chart.defaults.font.family = "'Outfit', sans-serif";
+
+            const barOpts = (label) => ({
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.03)' } },
+                    x: { grid: { display: false } }
+                }
+            });
+
+            charts.totalRequests = new Chart(document.getElementById('totalRequestsChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.frameworks,
+                    datasets: [{
+                        label: i18n.t('chart.totalRequestsLabel'),
+                        data: data.frameworks.map(fw => data.summary.byFramework[fw]?.totalRequests || 0),
+                        backgroundColor: data.frameworks.map((fw, i) => getFrameworkColor(fw, i).light),
+                        borderColor: data.frameworks.map((fw, i) => getFrameworkColor(fw, i).main),
+                        borderWidth: 1.5, borderRadius: 6
+                    }]
+                },
+                options: barOpts()
+            });
+
+            charts.avgLatency = new Chart(document.getElementById('avgLatencyChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.frameworks,
+                    datasets: [{
+                        label: i18n.t('chart.avgLatencyMs'),
+                        data: data.frameworks.map(fw => data.summary.byFramework[fw]?.avgLatency || 0),
+                        backgroundColor: data.frameworks.map((fw, i) => getFrameworkColor(fw, i).light),
+                        borderColor: data.frameworks.map((fw, i) => getFrameworkColor(fw, i).main),
+                        borderWidth: 1.5, borderRadius: 6
+                    }]
+                },
+                options: barOpts()
+            });
+
+            const lineOpts = (yLabel, xLabel) => ({
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11 } } } },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: yLabel, font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+                    x: { title: { display: true, text: xLabel, font: { size: 11 } }, grid: { display: false } }
+                }
+            });
+
+            if (Object.keys(data.json).length > 0) {
+                charts.jsonLatency = new Chart(document.getElementById('jsonLatencyChart').getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: data.concurrencyLevels.map(c => `C:${c}`),
+                        datasets: data.frameworks.map((fw, i) => ({
+                            label: fw,
+                            data: (data.json[fw] || []).map(d => d.latencyAvg),
+                            borderColor: getFrameworkColor(fw, i).main,
+                            backgroundColor: getFrameworkColor(fw, i).light,
+                            tension: 0.4, fill: false, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2
+                        }))
+                    },
+                    options: lineOpts(i18n.t('chart.latencyMs'), i18n.t('chart.concurrencyLevel'))
+                });
+
+                charts.jsonRequests = new Chart(document.getElementById('jsonRequestsChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.concurrencyLevels.map(c => `C:${c}`),
+                        datasets: data.frameworks.map((fw, i) => ({
+                            label: fw,
+                            data: (data.json[fw] || []).map(d => d.totalRequests),
+                            backgroundColor: getFrameworkColor(fw, i).light,
+                            borderColor: getFrameworkColor(fw, i).main,
+                            borderWidth: 1, borderRadius: 4
+                        }))
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11 } } } },
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: i18n.t('chart.totalRequestsLabel'), font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
+
+            if (Object.keys(data.plaintext).length > 0) {
+                charts.plaintextLatency = new Chart(document.getElementById('plaintextLatencyChart').getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: (data.pipelineConcurrencyLevels || []).map(c => `P:${c}`),
+                        datasets: data.frameworks.map((fw, i) => ({
+                            label: fw,
+                            data: (data.plaintext[fw] || []).map(d => d.latencyAvg),
+                            borderColor: getFrameworkColor(fw, i).main,
+                            backgroundColor: getFrameworkColor(fw, i).light,
+                            tension: 0.4, fill: false, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2
+                        }))
+                    },
+                    options: lineOpts(i18n.t('chart.latencyMs'), i18n.t('chart.pipelineConcurrency'))
+                });
+
+                charts.plaintextRequests = new Chart(document.getElementById('plaintextRequestsChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: (data.pipelineConcurrencyLevels || []).map(c => `P:${c}`),
+                        datasets: data.frameworks.map((fw, i) => ({
+                            label: fw,
+                            data: (data.plaintext[fw] || []).map(d => d.totalRequests),
+                            backgroundColor: getFrameworkColor(fw, i).light,
+                            borderColor: getFrameworkColor(fw, i).main,
+                            borderWidth: 1, borderRadius: 4
+                        }))
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11 } } } },
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: i18n.t('chart.totalRequestsLabel'), font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.03)' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
+
+            renderComparisonCharts(data);
+        }
+
+        function updateChartLabels() {
+            if (charts.totalRequests) { charts.totalRequests.data.datasets[0].label = i18n.t('chart.totalRequestsLabel'); charts.totalRequests.update(); }
+            if (charts.avgLatency) { charts.avgLatency.data.datasets[0].label = i18n.t('chart.avgLatencyMs'); charts.avgLatency.update(); }
+            if (charts.jsonLatency) { charts.jsonLatency.options.scales.y.title.text = i18n.t('chart.latencyMs'); charts.jsonLatency.options.scales.x.title.text = i18n.t('chart.concurrencyLevel'); charts.jsonLatency.update(); }
+            if (charts.jsonRequests) { charts.jsonRequests.options.scales.y.title.text = i18n.t('chart.totalRequestsLabel'); charts.jsonRequests.update(); }
+            if (charts.plaintextLatency) { charts.plaintextLatency.options.scales.y.title.text = i18n.t('chart.latencyMs'); charts.plaintextLatency.options.scales.x.title.text = i18n.t('chart.pipelineConcurrency'); charts.plaintextLatency.update(); }
+            if (charts.plaintextRequests) { charts.plaintextRequests.options.scales.y.title.text = i18n.t('chart.totalRequestsLabel'); charts.plaintextRequests.update(); }
+        }
+
+        function renderComparisonCharts(data) {
+            charts.comparisonLatency = new Chart(document.getElementById('comparisonLatencyChart').getContext('2d'), {
+                type: 'radar',
+                data: {
+                    labels: [i18n.t('table.latencyMin')+' JSON', i18n.t('table.latencyMax')+' JSON', i18n.t('table.latencyMin')+' PT', i18n.t('table.latencyMax')+' PT', 'Req JSON', 'Req PT'],
+                    datasets: data.frameworks.map((fw, i) => {
+                        const jd = data.json[fw] || [], pd = data.plaintext[fw] || [];
+                        return {
+                            label: fw,
+                            data: [
+                                jd.length ? Math.min(...jd.map(d=>d.latencyAvg)) : 0,
+                                jd.length ? Math.max(...jd.map(d=>d.latencyAvg)) : 0,
+                                pd.length ? Math.min(...pd.map(d=>d.latencyAvg)) : 0,
+                                pd.length ? Math.max(...pd.map(d=>d.latencyAvg)) : 0,
+                                jd.reduce((s,d) => s+d.totalRequests, 0)/100000,
+                                pd.reduce((s,d) => s+d.totalRequests, 0)/100000
+                            ],
+                            borderColor: getFrameworkColor(fw, i).main,
+                            backgroundColor: getFrameworkColor(fw, i).light,
+                            borderWidth: 2,
+                            pointBackgroundColor: getFrameworkColor(fw, i).main,
+                            pointRadius: 3
+                        };
+                    })
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11 } } } },
+                    scales: { r: { grid: { color: 'rgba(255,255,255,0.04)' }, angleLines: { color: 'rgba(255,255,255,0.04)' }, pointLabels: { color: '#6b7280', font: { size: 10 } } } }
+                }
+            });
+
+            charts.comparisonThroughput = new Chart(document.getElementById('comparisonThroughputChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.frameworks,
+                    datasets: [{
+                        data: data.frameworks.map(fw => data.summary.byFramework[fw]?.totalRequests || 0),
+                        backgroundColor: data.frameworks.map((fw, i) => getFrameworkColor(fw, i).main),
+                        borderColor: '#141820',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11 } } } }
+                }
+            });
+        }
+
+        function renderTables(data) {
+            // JSON Table
+            const jtb = document.querySelector('#jsonTable tbody');
+            jtb.innerHTML = '';
+            data.frameworks.forEach(fw => {
+                (data.json[fw] || []).forEach((e, i) => {
+                    const c = data.concurrencyLevels[i] || 'N/A';
+                    const cls = e.latencyAvg < 1 ? 'hl-green' : e.latencyAvg > 3 ? 'hl-red' : 'hl-amber';
+                    const r = document.createElement('tr');
+                    r.innerHTML = `<td class="fw-name">${fw}</td><td>${c}</td><td class="${cls}">${e.latencyAvg.toFixed(3)} ms</td><td>${e.latencyMax.toFixed(3)} ms</td><td>${e.latencyStdev.toFixed(3)} ms</td><td>${fmt(e.totalRequests)}</td>`;
+                    jtb.appendChild(r);
+                });
+            });
+
+            // Plaintext Table
+            const ptb = document.querySelector('#plaintextTable tbody');
+            ptb.innerHTML = '';
+            data.frameworks.forEach(fw => {
+                (data.plaintext[fw] || []).forEach((e, i) => {
+                    const p = data.pipelineConcurrencyLevels[i] || 'N/A';
+                    const cls = e.latencyAvg < 20 ? 'hl-green' : e.latencyAvg > 100 ? 'hl-red' : 'hl-amber';
+                    const r = document.createElement('tr');
+                    r.innerHTML = `<td class="fw-name">${fw}</td><td>${p}</td><td class="${cls}">${e.latencyAvg.toFixed(3)} ms</td><td>${e.latencyMax.toFixed(3)} ms</td><td>${e.latencyStdev.toFixed(3)} ms</td><td>${fmt(e.totalRequests)}</td><td class="${e.timeout > 0 ? 'hl-red' : 'hl-green'}">${e.timeout || 0}</td>`;
+                    ptb.appendChild(r);
+                });
+            });
+
+            // Ranking Table
+            const rtb = document.querySelector('#rankingTable tbody');
+            rtb.innerHTML = '';
+            data.summary.rankings.forEach((item, i) => {
+                const rc = i < 3 ? `rank-${i+1}` : 'rank-other';
+                const v = data.metadata.verify?.[item.framework] || {};
+                const sloc = data.metadata.slocCounts?.[item.framework] || 'N/A';
+                const isLeader = i === 0;
+                const vsStr = isLeader
+                    ? '<span class="vs-leader-tag is-leader" style="font-size:0.65rem;">★ ' + i18n.t('top.leader') + '</span>'
+                    : '<span style="color:var(--text-secondary);">' + item.pctOfLeader + '%</span>';
+                const r = document.createElement('tr');
+                r.innerHTML = `<td><span class="rank-badge ${rc}">${i+1}</span></td><td class="fw-name">${item.framework}</td><td><span class="tier-badge tier-${item.tier}">TIER ${item.tier}</span></td><td>${fmt(item.totalRequests)}</td><td style="color:var(--accent-cyan);font-weight:600;">${fmt(item.reqPerSec)}/s</td><td>${vsStr}</td><td class="hl-green">${item.minLatency.toFixed(3)} ms</td><td class="hl-red">${item.maxLatency.toFixed(3)} ms</td><td>${Object.entries(v).map(([k,val])=>`<span class="status-badge ${val==='pass'?'status-pass':'status-fail'}">${k}: ${val}</span>`).join(' ')}</td><td>${typeof sloc === 'number' ? fmt(sloc) : sloc}</td>`;
+                rtb.appendChild(r);
+            });
+
+            // Metadata Table
+            const mtb = document.querySelector('#metadataTable tbody');
+            mtb.innerHTML = '';
+            [
+                [i18n.t('metadata.uuid'), data.metadata.uuid || 'N/A'],
+                [i18n.t('metadata.name'), data.metadata.name || 'N/A'],
+                [i18n.t('metadata.environment'), data.metadata.environment || 'N/A'],
+                [i18n.t('metadata.gitRepo'), data.metadata.git?.repositoryUrl || 'N/A'],
+                [i18n.t('metadata.gitBranch'), data.metadata.git?.branchName || 'N/A'],
+                [i18n.t('metadata.gitCommit'), data.metadata.git?.commitId?.substring(0, 12) || 'N/A'],
+                [i18n.t('metadata.os'), `${data.metadata.os?.name || 'N/A'} ${data.metadata.os?.version || ''}`],
+                [i18n.t('metadata.startDate'), fmtDate(data.metadata.startTime)],
+                [i18n.t('metadata.endDate'), fmtDate(data.metadata.completionTime)],
+                [i18n.t('metadata.testDuration'), `${data.duration || 15} ${i18n.t('metadata.seconds')}`]
+            ].forEach(([k, v]) => {
+                const r = document.createElement('tr');
+                r.innerHTML = `<td style="font-weight:600;color:var(--accent-cyan);">${k}</td><td>${v}</td>`;
+                mtb.appendChild(r);
+            });
+        }
+
+        function renderProgressBars(data) {
+            const c = document.getElementById('progressBars');
+            const max = Math.max(...data.frameworks.map(fw => data.summary.byFramework[fw]?.totalRequests || 0));
+            c.innerHTML = data.summary.rankings.map((item, i) => {
+                const fw = item.framework;
+                const total = item.totalRequests;
+                const pct = max > 0 ? (total / max) * 100 : 0;
+                const color = getFrameworkColor(fw, data.frameworks.indexOf(fw)).main;
+                const vsLabel = i === 0 ? '★ 100%' : item.pctOfLeader + '%';
+                return `<div class="progress-item">
+                    <div class="progress-header">
+                        <span class="progress-label">${fw} <span style="color:var(--text-dim);font-size:0.7rem;margin-left:6px;">${vsLabel}</span></span>
+                        <span class="progress-value">${fmt(total)} ${i18n.t('progress.requests')}</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" style="width:${pct}%;background:${color};"></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // ============================================
+        // FILE HANDLING
+        // ============================================
+        function handleFile(file) {
+            showLoading();
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const validation = validateBenchmarkData(data);
+
+                    if (!validation.isValid) {
+                        showValidationErrors(validation.errors, validation.warnings);
+                        hideLoading();
+                        return;
+                    }
+
+                    if (validation.warnings.length > 0) {
+                        showValidationErrors([], validation.warnings);
+                    } else {
+                        document.getElementById('validationErrors').classList.remove('show');
+                    }
+
+                    rawSourceData = data; // Store original JSON for download
+                    benchmarkData = processBenchmarkData(data);
+                    renderDashboard(benchmarkData);
+                    hideLoading();
+                } catch (error) {
+                    showValidationErrors([`${i18n.t('validation.parseError')}: ${error.message}`], []);
+                    hideLoading();
+                }
+            };
+            reader.onerror = function() {
+                showValidationErrors([i18n.t('validation.readError')], []);
+                hideLoading();
+            };
+            reader.readAsText(file);
+        }
+
+        function loadFromEmbeddedData(data) {
+            // Reset all canvas elements — the captured HTML has "dirty" canvases
+            // from the previous Chart.js render. Chart.js can't reinitialize them,
+            // so we replace each canvas with a fresh one keeping the same id.
+            document.querySelectorAll('canvas').forEach(function(canvas) {
+                var parent = canvas.parentNode;
+                var fresh = document.createElement('canvas');
+                fresh.id = canvas.id;
+                parent.replaceChild(fresh, canvas);
+            });
+
+            rawSourceData = data;
+            benchmarkData = processBenchmarkData(data);
+            renderDashboard(benchmarkData);
+        }
+
+        function renderDashboard(data) {
+            var uploadEl = document.getElementById('uploadSection');
+            if (uploadEl) uploadEl.style.display = 'none';
+            document.getElementById('dashboard').classList.add('show');
+
+            renderInfoCards(data);
+            renderTopFrameworks(data);
+            renderCharts(data);
+            renderTables(data);
+            renderProgressBars(data);
+        }
+
+        // ============================================
+        // DOWNLOAD — Embeds data so it opens instantly
+        // ============================================
+        function downloadStaticHTML() {
+            if (!rawSourceData) return;
+            showLoading();
+
+            setTimeout(() => {
+                try {
+                    // === CLEAN DOM CLONE APPROACH ===
+                    // Instead of regex-patching outerHTML, we clone the DOM tree,
+                    // surgically clean it, and serialize the clean clone.
+                    
+                    const clone = document.documentElement.cloneNode(true);
+
+                    // 1. Remove sections we don't want in the download
+                    ['uploadSection', 'downloadSection', 'validationErrors', 'loadingOverlay'].forEach(id => {
+                        const el = clone.querySelector('#' + id);
+                        if (el) el.remove();
+                    });
+                    clone.querySelectorAll('input[type="file"]').forEach(el => el.remove());
+
+                    // 2. Replace all <canvas> with fresh empty ones
+                    //    (Chart.js pollutes canvases with internal state/attributes)
+                    clone.querySelectorAll('canvas').forEach(c => {
+                        const fresh = document.createElement('canvas');
+                        fresh.id = c.id;
+                        c.parentNode.replaceChild(fresh, c);
+                    });
+
+                    // 3. Clear all dynamically-rendered containers
+                    //    (they'll be re-rendered by the JS on load)
+                    ['infoGrid', 'topFrameworks', 'progressBars'].forEach(id => {
+                        const el = clone.querySelector('#' + id);
+                        if (el) el.innerHTML = '';
+                    });
+                    clone.querySelectorAll('tbody').forEach(tb => tb.innerHTML = '');
+
+                    // 4. Ensure dashboard is visible
+                    const dashboard = clone.querySelector('#dashboard');
+                    if (dashboard) dashboard.className = 'dashboard show';
+
+                    // 5. Inject embedded data as a <script> BEFORE the main script
+                    //    so globals exist when DOMContentLoaded fires
+                    const dataScript = document.createElement('script');
+                    dataScript.textContent = 
+                        'var __EMBEDDED_BENCHMARK_DATA__ = ' + JSON.stringify(rawSourceData) + ';\n' +
+                        'var __EMBEDDED_LANG__ = "' + i18n.currentLang + '";';
+                    
+                    const mainScript = clone.querySelector('body > script:not([src])');
+                    if (mainScript) {
+                        mainScript.parentNode.insertBefore(dataScript, mainScript);
+                    } else {
+                        clone.querySelector('body').appendChild(dataScript);
+                    }
+
+                    // 6. Serialize and download
+                    const html = '<!DOCTYPE html>\n' + clone.outerHTML;
+                    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'benchmark-report-' + Date.now() + '.html';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch(err) {
+                    console.error('Download error:', err);
+                } finally {
+                    hideLoading();
+                }
+            }, 100);
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // === EMBEDDED DATA DETECTION ===
+            // If this file was downloaded with embedded data, the globals
+            // __EMBEDDED_BENCHMARK_DATA__ and __EMBEDDED_LANG__ exist
+            // (set by a <script> tag inserted before this one).
+            var isEmbedded = typeof __EMBEDDED_BENCHMARK_DATA__ !== 'undefined';
+
+            if (isEmbedded) {
+                // Set language from embedded
+                var eLang = typeof __EMBEDDED_LANG__ !== 'undefined' ? __EMBEDDED_LANG__ : 'es';
+                if (i18n.translations[eLang]) {
+                    i18n.currentLang = eLang;
+                    i18n.updateAllTexts();
+                    document.documentElement.lang = eLang;
+                    document.querySelectorAll('.lang-toggle button').forEach(function(btn) {
+                        btn.classList.toggle('active', btn.dataset.lang === eLang);
+                    });
+                }
+                // Load data
+                loadFromEmbeddedData(__EMBEDDED_BENCHMARK_DATA__);
+            } else {
+                // Normal mode: load saved language preference
+                try {
+                    var savedLang = localStorage.getItem('benchmark-lang');
+                    if (savedLang && i18n.translations[savedLang]) {
+                        i18n.currentLang = savedLang;
+                        i18n.updateAllTexts();
+                        document.documentElement.lang = savedLang;
+                        document.querySelectorAll('.lang-toggle button').forEach(function(btn) {
+                            btn.classList.toggle('active', btn.dataset.lang === savedLang);
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            // Language switcher
+            document.querySelectorAll('.lang-toggle button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const lang = this.dataset.lang;
+                    i18n.setLanguage(lang);
+                    document.querySelectorAll('.lang-toggle button').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // Upload button click
+            const uploadBtn = document.getElementById('uploadBtn');
+            const fileInput = document.getElementById('fileInput');
+
+            if (uploadBtn && fileInput) {
+                uploadBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fileInput.click();
+                });
+            }
+
+            // File input change
+            if (fileInput) {
+                fileInput.addEventListener('change', function(e) {
+                    if (e.target.files.length > 0) handleFile(e.target.files[0]);
+                });
+            }
+
+            // Upload zone drag and drop + click to upload
+            const uploadSection = document.getElementById('uploadSection');
+            if (uploadSection) {
+                uploadSection.addEventListener('click', function(e) {
+                    // If they clicked the zone (not the button which handles its own click)
+                    if (e.target !== uploadBtn && fileInput) {
+                        fileInput.click();
+                    }
+                });
+
+                uploadSection.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    uploadSection.classList.add('drag-over');
+                });
+
+                uploadSection.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    uploadSection.classList.remove('drag-over');
+                });
+
+                uploadSection.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    uploadSection.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+                });
+            }
+
+            // Download button
+            const downloadBtn = document.getElementById('downloadBtn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', function() {
+                    downloadStaticHTML();
+                });
+            }
+
+            // Tab navigation
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById(`tab-${tabId}`).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
